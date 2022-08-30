@@ -1,0 +1,5 @@
+github.com/asticode/go-astideepspeech v0.10.0 h1:iMns9KIFdNrzmR77akHIsNM/qUO4IP6/N/WKX5SZr1o=
+github.com/asticode/go-astideepspeech v0.10.0/go.mod h1:SJCkfh5e79BgSQqKEEAtfjZT0yOekjKEiB3FVOTrpog=
+github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927/go.mod h1:h/aW8ynjgkuj+NQRlZcDbAbM1ORAbXjXX77sX7T289U=
+github.com/cryptix/wav v0.0.0-20180415113528-8bdace674401 h1:rZ+OHHkwlkYALTEd6AYXSL92K/SEc4fkz+TfweIwu6A=
+github.com/cryptix/wav v0.0.0-20180415113528-8bdace674401/go.mod h1:knK8fd+KPlGGqSUWogv1DQzGTwnfUvAi0cIoWyOG7+U=
