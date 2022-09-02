@@ -1,73 +1,144 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/slingr-exercise/transcripts"
+	"github.com/slingr-exercise/wer"
 	"io"
 	"log"
 	"os"
-
-	astideepspeech "github.com/asticode/go-astideepspeech"
-	"github.com/cryptix/wav"
+	"strings"
+	"time"
 )
 
 func main() {
+	_, _ = Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio1.wav")
+}
 
-	var model = "C:\\Users\\franc\\Documents\\deepspeech\\deepspeech-0.9.0-models.pbmm"
-	var scorer = "C:\\Users\\franc\\Documents\\deepspeech\\deepspeech-0.9.0-models.scorer"
-	var audio = "C:\\Users\\franc\\Documents\\deepspeech\\audio\\._2830-3980-0043.wav"
+func Transcribe(image string, audioName string) (string, error) {
+	startTime := time.Now()
 
-	// Initialize DeepSpeech
-	m, err := astideepspeech.New(model)
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		log.Fatal("Failed initializing model: ", err)
-	}
-	defer m.Close()
-
-	if err := m.EnableExternalScorer(scorer); err != nil {
-		log.Fatal("Failed enabling external scorer: ", err)
+		fmt.Println("Unable to create docker client")
+		panic(err)
 	}
 
-	// Stat audio
-	i, err := os.Stat(audio)
+	PullOrUpdateImage(cli, image)
+
+	cont, err := cli.ContainerCreate(
+		context.Background(),
+		&container.Config{
+			Image: image,
+			Cmd:   []string{"--audio", audioName},
+		},
+		nil, nil, nil, "")
 	if err != nil {
-		log.Fatal(fmt.Errorf("stating %s failed: %w", audio, err))
+		fmt.Println("Unable to create docker container")
+		panic(err)
 	}
 
-	// Open audio
-	f, err := os.Open(audio)
-	if err != nil {
-		log.Fatal(fmt.Errorf("opening %s failed: %w", audio, err))
+	if err := cli.ContainerStart(context.Background(), cont.ID, types.ContainerStartOptions{}); err != nil {
+		fmt.Println("Unable to start docker container")
+		panic(err)
 	}
 
-	// Create reader
-	r, err := wav.NewReader(f, i.Size())
-	if err != nil {
-		log.Fatal(fmt.Errorf("creating new reader failed: %w", err))
-	}
-
-	// Read
-	var d []int16
-	for {
-		// Read sample
-		s, err := r.ReadSample()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal(fmt.Errorf("reading sample failed: %w", err))
+	statusCh, errCh := cli.ContainerWait(context.Background(), cont.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			panic(err)
 		}
-
-		// Append
-		d = append(d, int16(s))
+	case <-statusCh:
 	}
 
-	// Speech to text
-	var results []string
-	res, err := m.SpeechToText(d)
+	out, err := cli.ContainerLogs(context.Background(), cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 	if err != nil {
-		log.Fatal("Failed converting speech to text: ", err)
+		panic(err)
 	}
-	results = []string{res}
-	for _, res := range results {
-		fmt.Println("Text:", res)
+
+	result := getStringResult(out)
+
+	audio1Transcript := transcripts.GetAudio1Transcript()
+
+	reference := strings.Split(strings.ToLower(audio1Transcript), " ")
+	candidate := strings.Split(strings.ToLower(result), " ")
+
+	wordErrorRate, wordAccuracy, sub, del, ins := wer.WER(reference, candidate)
+	fmt.Printf("Word Error Rate: %f\n", wordErrorRate*float64(100))
+	fmt.Printf("Word Accuracy: %f\n", wordAccuracy*float64(100))
+	fmt.Printf("Subs:%d  - Ins:%d - Del:%d \n", sub, del, ins)
+
+	if wordAccuracy > float64(0.8) {
+		fmt.Println("Transcription Passed")
+	} else {
+		fmt.Println("Transcription not passed, Word accuracy below 80%")
 	}
+
+	endTime := time.Now()
+	totalTime := endTime.Sub(startTime)
+	fmt.Println("Elapsed transition time: " + totalTime.String())
+
+	if err := stopAndRemoveContainer(cli, cont.ID); err != nil {
+		panic(err)
+	}
+
+	return cont.ID, nil
+}
+
+func strip(s string) string {
+	var result strings.Builder
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if ('a' <= b && b <= 'z') ||
+			('A' <= b && b <= 'Z') ||
+			('0' <= b && b <= '9') ||
+			b == ' ' {
+			result.WriteByte(b)
+		}
+	}
+	return result.String()
+}
+
+func PullOrUpdateImage(cli *client.Client, image string) {
+	reader, err := cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	defer reader.Close()
+	io.Copy(os.Stdout, reader)
+}
+
+func stopAndRemoveContainer(client *client.Client, id string) error {
+	ctx := context.Background()
+
+	if err := client.ContainerStop(ctx, id, nil); err != nil {
+		log.Printf("Unable to stop container %s: %s", id, err)
+	}
+
+	removeOptions := types.ContainerRemoveOptions{
+		RemoveVolumes: true,
+		Force:         true,
+	}
+
+	if err := client.ContainerRemove(ctx, id, removeOptions); err != nil {
+		log.Printf("Unable to remove container: %s", err)
+		return err
+	}
+
+	return nil
+}
+
+func getStringResult(reader io.Reader) string {
+	buf := new(strings.Builder)
+	_, _ = io.Copy(buf, reader)
+	result := strip(buf.String())
+	fmt.Print(result + "\n")
+
+	return result
 }
