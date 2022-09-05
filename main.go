@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/slingr-exercise/models"
 	"github.com/slingr-exercise/transcripts"
+	"github.com/slingr-exercise/utils"
 	"github.com/slingr-exercise/wer"
 	"io"
 	"log"
@@ -16,10 +19,10 @@ import (
 )
 
 func main() {
-	_, _ = Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio1.wav")
+	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio1.wav")
 }
 
-func Transcribe(image string, audioName string) (string, error) {
+func Transcribe(image string, audioName string) {
 	startTime := time.Now()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -30,13 +33,11 @@ func Transcribe(image string, audioName string) (string, error) {
 
 	PullOrUpdateImage(cli, image)
 
-	cont, err := cli.ContainerCreate(
-		context.Background(),
-		&container.Config{
-			Image: image,
-			Cmd:   []string{"--audio", audioName},
-		},
-		nil, nil, nil, "")
+	containerConfig := &container.Config{
+		Image: image,
+		Cmd:   []string{"--audio", audioName},
+	}
+	cont, err := cli.ContainerCreate(context.Background(), containerConfig, nil, nil, nil, "")
 	if err != nil {
 		fmt.Println("Unable to create docker container")
 		panic(err)
@@ -44,6 +45,12 @@ func Transcribe(image string, audioName string) (string, error) {
 
 	if err := cli.ContainerStart(context.Background(), cont.ID, types.ContainerStartOptions{}); err != nil {
 		fmt.Println("Unable to start docker container")
+		panic(err)
+	}
+
+	cpuUsage, err := getCPUUsage(cli, cont.ID)
+	if err != nil {
+		fmt.Println("Unable to get docker stats")
 		panic(err)
 	}
 
@@ -56,22 +63,28 @@ func Transcribe(image string, audioName string) (string, error) {
 	case <-statusCh:
 	}
 
+	audioSize, err := getAudioSize(cli, cont.ID)
+	if err != nil {
+		fmt.Println("Unable to get audio size")
+		panic(err)
+	}
+
 	out, err := cli.ContainerLogs(context.Background(), cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 	if err != nil {
 		panic(err)
 	}
 
-	result := getStringResult(out)
+	result := utils.GetStringResult(out)
 
-	audio1Transcript := transcripts.GetAudio1Transcript()
+	audio1Transcript := transcripts.GetAudioTranscript(audioName)
 
 	reference := strings.Split(strings.ToLower(audio1Transcript), " ")
 	candidate := strings.Split(strings.ToLower(result), " ")
 
 	wordErrorRate, wordAccuracy, sub, del, ins := wer.WER(reference, candidate)
-	fmt.Printf("Word Error Rate: %f\n", wordErrorRate*float64(100))
-	fmt.Printf("Word Accuracy: %f\n", wordAccuracy*float64(100))
-	fmt.Printf("Subs:%d  - Ins:%d - Del:%d \n", sub, del, ins)
+	fmt.Printf("Word Error Rate: %%%f\n", wordErrorRate*float64(100))
+	fmt.Printf("Word Accuracy: %%%f\n", wordAccuracy*float64(100))
+	fmt.Printf("Subs:%d - Ins:%d - Del:%d \n", sub, del, ins)
 
 	if wordAccuracy > float64(0.8) {
 		fmt.Println("Transcription Passed")
@@ -82,26 +95,12 @@ func Transcribe(image string, audioName string) (string, error) {
 	endTime := time.Now()
 	totalTime := endTime.Sub(startTime)
 	fmt.Println("Elapsed transition time: " + totalTime.String())
+	fmt.Printf("CPU average Usage: %%%f \n", *cpuUsage)
+	fmt.Printf("Input Audio File Size: %s", *audioSize)
 
 	if err := stopAndRemoveContainer(cli, cont.ID); err != nil {
 		panic(err)
 	}
-
-	return cont.ID, nil
-}
-
-func strip(s string) string {
-	var result strings.Builder
-	for i := 0; i < len(s); i++ {
-		b := s[i]
-		if ('a' <= b && b <= 'z') ||
-			('A' <= b && b <= 'Z') ||
-			('0' <= b && b <= '9') ||
-			b == ' ' {
-			result.WriteByte(b)
-		}
-	}
-	return result.String()
 }
 
 func PullOrUpdateImage(cli *client.Client, image string) {
@@ -112,6 +111,33 @@ func PullOrUpdateImage(cli *client.Client, image string) {
 
 	defer reader.Close()
 	io.Copy(os.Stdout, reader)
+}
+
+func getCPUUsage(cli *client.Client, containerID string) (*float64, error) {
+	statsResponse, _ := cli.ContainerStats(context.Background(), containerID, false)
+
+	var stats models.Stats
+	if err := json.NewDecoder(statsResponse.Body).Decode(&stats); err != nil {
+		return nil, err
+	}
+
+	cpuDelta := stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage
+	systemCpuDelta := stats.CPUStats.SystemCPUUsage - stats.PreCPUStats.SystemCPUUsage
+	cpuUsage := (float64(cpuDelta) / float64(systemCpuDelta)) * float64(100.0)
+
+	return &cpuUsage, nil
+}
+
+func getAudioSize(cli *client.Client, containerID string) (*string, error) {
+	out, err := cli.ContainerLogs(context.Background(), containerID, types.ContainerLogsOptions{ShowStderr: true, Tail: "2"})
+	if err != nil {
+		return nil, err
+	}
+
+	result := utils.GetStringResult(out)
+	audioSize := strings.Split(strings.ToLower(result), " ")[4]
+
+	return &audioSize, err
 }
 
 func stopAndRemoveContainer(client *client.Client, id string) error {
@@ -132,13 +158,4 @@ func stopAndRemoveContainer(client *client.Client, id string) error {
 	}
 
 	return nil
-}
-
-func getStringResult(reader io.Reader) string {
-	buf := new(strings.Builder)
-	_, _ = io.Copy(buf, reader)
-	result := strip(buf.String())
-	fmt.Print(result + "\n")
-
-	return result
 }
