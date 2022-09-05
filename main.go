@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -11,11 +17,6 @@ import (
 	"github.com/slingr-exercise/transcripts"
 	"github.com/slingr-exercise/utils"
 	"github.com/slingr-exercise/wer"
-	"io"
-	"log"
-	"os"
-	"strings"
-	"time"
 )
 
 var (
@@ -26,16 +27,28 @@ var (
 )
 
 func main() {
-	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio1.wav")
-	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio2.wav")
+	f, err := os.Create("report.txt")
+	if err != nil {
+		panic(err)
+	}
 
-	fmt.Printf("Average Accuracy: %%%f \n", (totalAccuracy/numberOfRuns)*float64(100))
+	defer f.Close()
+
+	f.WriteString("Transcriptions Report\n")
+
+	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio1.wav", f)
+	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio2.wav", f)
+	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio3.wav", f)
+	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio4.wav", f)
+	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio5.wav", f)
+
+	f.WriteString(fmt.Sprintf("\nAverage Accuracy: %%%f \n", (totalAccuracy/numberOfRuns)*float64(100)))
 	runs := time.Duration(numberOfRuns)
-	fmt.Printf("Average Time Elapsed: %s \n", (totalTimeElapsed / runs).String())
-	fmt.Printf("Average CPU Usage: %%%f", totalCPUUsage/numberOfRuns)
+	f.WriteString(fmt.Sprintf("Average Time Elapsed: %s \n", (totalTimeElapsed / runs).String()))
+	f.WriteString(fmt.Sprintf("Average CPU Usage: %%%f", totalCPUUsage/numberOfRuns))
 }
 
-func Transcribe(image string, audioName string) {
+func Transcribe(image string, audioName string, reportFile *os.File) {
 	startTime := time.Now()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -87,29 +100,35 @@ func Transcribe(image string, audioName string) {
 		panic(err)
 	}
 
-	result := utils.GetStringResult(out)
+	result := utils.GetStringResult(out, false)
 
-	audio1Transcript := transcripts.GetAudioTranscript(audioName)
+	audio1Transcript := utils.Strip(transcripts.GetAudioTranscript(audioName))
 
 	reference := strings.Split(strings.ToLower(audio1Transcript), " ")
 	candidate := strings.Split(strings.ToLower(result), " ")
 
 	wordErrorRate, wordAccuracy, sub, del, ins := wer.WER(reference, candidate)
-	fmt.Printf("Word Error Rate: %%%f\n", wordErrorRate*float64(100))
-	fmt.Printf("Word Accuracy: %%%f\n", wordAccuracy*float64(100))
-	fmt.Printf("Subs:%d - Ins:%d - Del:%d \n", sub, del, ins)
+
+	numberOfRuns += 1
+	reportFile.WriteString(fmt.Sprintf("\nTranscription Number %d - Audio: %s \n\n", int64(numberOfRuns), audioName))
+	reportFile.WriteString(fmt.Sprintf("Expected: \n%s\n\n", audio1Transcript))
+	reportFile.WriteString(fmt.Sprintf("Actual: \n%s\n\n", result))
 
 	if wordAccuracy > float64(0.8) {
-		fmt.Println("Transcription Passed")
+		reportFile.WriteString("Transcription Passed\n")
 	} else {
-		fmt.Println("Transcription not passed, Word accuracy below 80%")
+		reportFile.WriteString("Transcription not passed, Word accuracy below 80%\n")
 	}
+
+	reportFile.WriteString(fmt.Sprintf("Word Error Rate: %%%f\n", wordErrorRate*float64(100)))
+	reportFile.WriteString(fmt.Sprintf("Word Accuracy: %%%f\n", wordAccuracy*float64(100)))
+	reportFile.WriteString(fmt.Sprintf("Substitutions:%d - Insertions:%d - Deletions:%d \n", sub, del, ins))
 
 	endTime := time.Now()
 	totalTime := endTime.Sub(startTime)
-	fmt.Println("Elapsed transition time: " + totalTime.String())
-	fmt.Printf("CPU average Usage: %%%f \n", *cpuUsage)
-	fmt.Printf("Input Audio File Size: %s \n", *audioSize)
+	reportFile.WriteString("Elapsed transition time: " + totalTime.String() + "\n")
+	reportFile.WriteString(fmt.Sprintf("CPU average Usage: %%%f \n", *cpuUsage))
+	reportFile.WriteString(fmt.Sprintf("Input Audio File Size: %s \n", *audioSize))
 
 	if err := stopAndRemoveContainer(cli, cont.ID); err != nil {
 		panic(err)
@@ -118,7 +137,6 @@ func Transcribe(image string, audioName string) {
 	totalAccuracy += wordAccuracy
 	totalTimeElapsed += totalTime
 	totalCPUUsage += *cpuUsage
-	numberOfRuns += 1
 }
 
 func PullOrUpdateImage(cli *client.Client, image string) {
@@ -152,7 +170,7 @@ func getAudioSize(cli *client.Client, containerID string) (*string, error) {
 		return nil, err
 	}
 
-	result := utils.GetStringResult(out)
+	result := utils.GetStringResult(out, true)
 	audioSize := strings.Split(strings.ToLower(result), " ")[4]
 
 	return &audioSize, err

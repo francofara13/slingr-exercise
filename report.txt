@@ -1,0 +1,85 @@
+Transcriptions Report
+
+Transcription Number 1 - Audio: audio1.wav 
+
+Expected: 
+razu you must hurry you must stay the path
+
+Actual: 
+he has he must hurry you must stay on the path
+
+Transcription not passed, Word accuracy below 80%
+Word Error Rate: %44.444444
+Word Accuracy: %55.555556
+Substitutions:2 - Insertions:0 - Deletions:1 
+Elapsed transition time: 7.7055657s
+CPU average Usage: %19.467314 
+Input Audio File Size: 8825s 
+
+Transcription Number 2 - Audio: audio2.wav 
+
+Expected: 
+last eve i paused beside the blacksmiths door and heard the anvil ring the vesper chime then looking in i saw upon the floor old hammers worn with beating years of time how many anvils had you had said i to wear and better all these hammers so just one said he and then with twinkling eye the anvil was the hamerton and so i thought the envious world for ages skeptic blows have beat upon yet though the noise of falling blows was heard the anvil is alarmed the hammers gone
+
+Actual: 
+last eve i paused beside the blacksmiths door and heard the anvil ring the vesper chime then looking in i saw upon the floor old hammers worn with beating years of time how many anvils had you had said i to wear and better all these hammers so just one said he and then with twinkling eye the anvil was the hamerton and so i thought the envious world for ages skeptic blows have beat upon yet though the noise of falling blows was heard the anvil is alarmed the hammers gone
+
+Transcription Passed
+Word Error Rate: %0.000000
+Word Accuracy: %100.000000
+Substitutions:0 - Insertions:0 - Deletions:0 
+Elapsed transition time: 33.1663109s
+CPU average Usage: %18.899163 
+Input Audio File Size: 67558s 
+
+Transcription Number 3 - Audio: audio3.wav 
+
+Expected: 
+the tyger by william blake read by a levity tiger tiger burning bright in the forests of the night what immortal hand or eye could frame thy fearful symmetry in what distant deeps or skies burned the fire of thine eyes on what wings dare he aspire what the hand dare seize the fire and what shoulder and what art could twist the sinews of thy heart and when thy heart began to beat what dread hand and what dread feet what the hammer what the chain in what furniss thy brain what the anvil what dread grasp dare it deadly terrors clasp when the stars threw down their spears and watered heaven with their tears did he smile his work to see did he who made the lamb make thee tiger tiger burning bright in the forests of the night what immortal hand or eye dare frame thy fearful symmetry in the poem this recording is in the public domain
+
+Actual: 
+Gthe tiger by william blake read by a levity tiger tiger burning bright in the forests of the night what immortal hand or eye could frame thy fearful symmetry in what distant deeps or skies burned the fire of thine eyes on what wings dare he aspire what the hand dare seize the fire and what shoulder and what art could twist the sinews of thy heart and when thy heart began to beat what dread hand and what dread feet what the hammer what the chain in what furniss thy brain what the anvil what dread grasp dare it deadly terrors clasp when the stars threw down their spears and watered heaven with their tears did he smile his work to see did he who made the lamb make thee tiger tiger burning bright in the forests of the night what immortal hand or eye dare frame thy fearful symmetry in the poem this recording is in the public domain
+
+Transcription Passed
+Word Error Rate: %1.242236
+Word Accuracy: %98.757764
+Substitutions:2 - Insertions:0 - Deletions:0 
+Elapsed transition time: 48.2271729s
+CPU average Usage: %19.304065 
+Input Audio File Size: 101407s 
+
+Transcription Number 4 - Audio: audio4.wav 
+
+Expected: 
+algeria will rise again and dragunnitum is the key algeria will rise again and dragunnitum is the key algeria will rise again and dragunnitum is the key algeria will rise again and dragunnitum is the key algeria will rise again and dragunnitum is the key algeria will rise again and dragunnitum is the key algeria will rise again and dragunnitum is the key
+
+Actual: 
+algeria will rise again a dragon in tom is the key algeria will rise again and dragons him is the key algeria will rise again and dragons the key of cerialis again and dragonette key oh cerialis again and dragonite algeria will rise again and dragons is the key algeria will rise again and drag onisim is the key
+
+Transcription not passed, Word accuracy below 80%
+Word Error Rate: %38.095238
+Word Accuracy: %61.904762
+Substitutions:12 - Insertions:8 - Deletions:4 
+Elapsed transition time: 17.2363625s
+CPU average Usage: %19.618718 
+Input Audio File Size: 31950s 
+
+Transcription Number 5 - Audio: audio5.wav 
+
+Expected: 
+come on chief its trash can not trash cannot that was a bad motivational quote just go get them come on chief its trash can not trash cannot that was a bad motivational quote just go get them come on chief its trash can not trash cannot that was a bad motivational quote just go get them come on chief its trash can not trash cannot that was a bad motivational quote just go get them come on chief its trash can not trash cannot that was a bad motivational quote just go get them
+
+Actual: 
+come on chief i trust can not trust cannot okay let the amoeba motivation grotto just go get them or come on chief its trash can not trash cannot that was a bad man vision quote just go hither at covent is traced not truscot argiope bad motivation of grudge them a common sieve is transcend not trash can not be great them come on chief its truth can not trust cannot tante best mode is required i could come up with just get them
+
+Transcription not passed, Word accuracy below 80%
+Word Error Rate: %62.105263
+Word Accuracy: %37.894737
+Substitutions:39 - Insertions:15 - Deletions:5 
+Elapsed transition time: 20.7770907s
+CPU average Usage: %19.843258 
+Input Audio File Size: 39797s 
+
+Average Accuracy: %70.822564 
+Average Time Elapsed: 25.42250054s 
+Average CPU Usage: %19.426504
