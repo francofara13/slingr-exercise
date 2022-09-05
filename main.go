@@ -18,8 +18,21 @@ import (
 	"time"
 )
 
+var (
+	totalAccuracy    float64
+	totalTimeElapsed time.Duration
+	totalCPUUsage    float64
+	numberOfRuns     float64
+)
+
 func main() {
 	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio1.wav")
+	Transcribe("harbor.ops.veritone.com/challenges/deepspeech", "audio2.wav")
+
+	fmt.Printf("Average Accuracy: %%%f \n", (totalAccuracy/numberOfRuns)*float64(100))
+	runs := time.Duration(numberOfRuns)
+	fmt.Printf("Average Time Elapsed: %s \n", (totalTimeElapsed / runs).String())
+	fmt.Printf("Average CPU Usage: %%%f", totalCPUUsage/numberOfRuns)
 }
 
 func Transcribe(image string, audioName string) {
@@ -96,11 +109,16 @@ func Transcribe(image string, audioName string) {
 	totalTime := endTime.Sub(startTime)
 	fmt.Println("Elapsed transition time: " + totalTime.String())
 	fmt.Printf("CPU average Usage: %%%f \n", *cpuUsage)
-	fmt.Printf("Input Audio File Size: %s", *audioSize)
+	fmt.Printf("Input Audio File Size: %s \n", *audioSize)
 
 	if err := stopAndRemoveContainer(cli, cont.ID); err != nil {
 		panic(err)
 	}
+
+	totalAccuracy += wordAccuracy
+	totalTimeElapsed += totalTime
+	totalCPUUsage += *cpuUsage
+	numberOfRuns += 1
 }
 
 func PullOrUpdateImage(cli *client.Client, image string) {
