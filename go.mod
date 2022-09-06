@@ -2,10 +2,7 @@ module github.com/slingr-exercise
 
 go 1.17
 
-require (
-	github.com/codycollier/wer v0.0.0-20201114000249-55e36670fdc8
-	github.com/docker/go-connections v0.4.0 // indirect
-)
+require github.com/docker/go-connections v0.4.0 // indirect
 
 require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
@@ -24,5 +21,3 @@ require (
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	gotest.tools/v3 v3.3.0 // indirect
 )
-
-require github.com/cfcooney/Word-Error-Rate v0.0.0-20191227212131-76dd45e45933
